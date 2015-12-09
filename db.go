@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/user"
 	"strings"
 )
 
@@ -19,7 +20,17 @@ type Database map[string]Password
 
 var database Database
 
-var dbName = "npass.json"
+var dbName = ".npass.db"
+var dbFileName string
+
+func init() {
+	u, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbFileName = u.HomeDir + "/" + dbName
+}
 
 func create() {
 	fmt.Println("creating new db")
@@ -29,7 +40,7 @@ func create() {
 
 func load() (err error) {
 
-	blob, err := ioutil.ReadFile(dbName)
+	blob, err := ioutil.ReadFile(dbFileName)
 
 	if os.IsNotExist(err) {
 		create()
@@ -39,7 +50,7 @@ func load() (err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Loading %s\n", dbName)
+	fmt.Printf("Loading %s\n", dbFileName)
 	err = json.Unmarshal(blob, &database)
 	if err != nil {
 		log.Fatal(err)
@@ -56,8 +67,8 @@ func save() {
 		log.Fatal(err)
 	}
 
-	ioutil.WriteFile(dbName, blob, 0600)
-	fmt.Printf("Saved %s\n", dbName)
+	ioutil.WriteFile(dbFileName, blob, 0600)
+	fmt.Printf("Saved %s\n", dbFileName)
 }
 
 func add(key, pass, description string) {
