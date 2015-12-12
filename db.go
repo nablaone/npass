@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/user"
 	"strings"
+
+	"golang.org/x/crypto/openpgp"
 )
 
 type Password struct {
@@ -22,6 +24,7 @@ var database Database
 
 var dbName = ".npass.db"
 var dbFileName string
+var dbPassword = "secret" // TODO ask user
 
 func init() {
 	u, err := user.Current()
@@ -32,6 +35,10 @@ func init() {
 	dbFileName = u.HomeDir + "/" + dbName
 }
 
+func password() string {
+	return dbPassword
+}
+
 func create() {
 	fmt.Println("creating new db")
 	database = make(Database)
@@ -40,18 +47,32 @@ func create() {
 
 func load() (err error) {
 
-	blob, err := ioutil.ReadFile(dbFileName)
+	f, err := os.Open(dbFileName)
+	defer f.Close()
 
 	if os.IsNotExist(err) {
 		create()
 		return nil
 	}
 
+	promptFunction := func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
+		return []byte(password()), nil
+	}
+
+	md, err := openpgp.ReadMessage(f, nil, promptFunction, nil)
+
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	bytes, err := ioutil.ReadAll(md.UnverifiedBody)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fmt.Printf("Loading %s\n", dbFileName)
-	err = json.Unmarshal(blob, &database)
+	err = json.Unmarshal(bytes, &database)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,7 +88,27 @@ func save() {
 		log.Fatal(err)
 	}
 
-	ioutil.WriteFile(dbFileName, blob, 0600)
+	f, err := os.Create(dbFileName)
+	defer f.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	writer, err := openpgp.SymmetricallyEncrypt(f, []byte(password()), nil, nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = writer.Write(blob)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	writer.Close()
+
 	fmt.Printf("Saved %s\n", dbFileName)
 }
 
