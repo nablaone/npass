@@ -119,7 +119,10 @@ func addCmd(params []string) {
 	}
 
 	add(login, *password, *desc)
-	save()
+	err := save()
+	if err != nil {
+		fmt.Printf("Error while saving %s\n", err)
+	}
 	resetRecentResult()
 }
 
@@ -132,7 +135,10 @@ func delCmd(params []string) {
 	login := toLogin(params[0])
 
 	del(login)
-	save()
+	err := save()
+	if err != nil {
+		fmt.Printf("Error while saving %s\n", err)
+	}
 	resetRecentResult()
 }
 
@@ -150,7 +156,10 @@ func renameCmd(params []string) {
 	p.Login = to
 
 	add(p.Login, p.Password, p.Description)
-	save()
+	err := save()
+	if err != nil {
+		fmt.Printf("Error while saving %s\n", err)
+	}
 }
 
 func printCmd(params []string) {
@@ -205,8 +214,16 @@ func repl() {
 
 func main() {
 
-	load()
-	repl()
-	save()
+	err := load()
+	if err != nil {
+		fmt.Printf("Unable to load the database '%s'\n", err)
+		return
+	}
 
+	repl()
+
+	err = save()
+	if err != nil {
+		fmt.Printf("Error while saving %s \n", err)
+	}
 }
