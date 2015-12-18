@@ -76,7 +76,7 @@ func searchCmd(params []string) {
 	recentSearchResults = search(q)
 
 	for idx, pass := range recentSearchResults {
-		fmt.Printf("%d) %s - %s\n", idx, pass.Key, pass.Description)
+		fmt.Printf("%d) %s - %s\n", idx, pass.Login, pass.Description)
 	}
 }
 
@@ -84,11 +84,11 @@ func resetRecentResult() {
 	recentSearchResults = []Password{}
 }
 
-func toKey(s string) string {
+func toLogin(s string) string {
 
 	if i, err := strconv.Atoi(s); err == nil {
 		if i >= 0 && i < len(recentSearchResults) {
-			return recentSearchResults[i].Key
+			return recentSearchResults[i].Login
 		}
 	}
 	return s
@@ -96,11 +96,11 @@ func toKey(s string) string {
 
 func addCmd(params []string) {
 	if len(params) != 1 {
-		fmt.Println("Missing key parameter")
+		fmt.Println("Missing login parameter")
 		return
 	}
 
-	key := params[0]
+	login := params[0]
 
 	fmt.Print("Password: ")
 	var password = readline()
@@ -118,7 +118,7 @@ func addCmd(params []string) {
 		return
 	}
 
-	add(key, *password, *desc)
+	add(login, *password, *desc)
 	save()
 	resetRecentResult()
 }
@@ -129,9 +129,9 @@ func delCmd(params []string) {
 		return
 	}
 
-	key := toKey(params[0])
+	login := toLogin(params[0])
 
-	del(key)
+	del(login)
 	save()
 	resetRecentResult()
 }
@@ -141,15 +141,15 @@ func renameCmd(params []string) {
 		fmt.Println("Wrong number of parameters")
 	}
 
-	from := toKey(params[0])
+	from := toLogin(params[0])
 	to := params[1]
 
 	p := get(from)
 
-	del(p.Key)
-	p.Key = to
+	del(p.Login)
+	p.Login = to
 
-	add(p.Key, p.Password, p.Description)
+	add(p.Login, p.Password, p.Description)
 	save()
 }
 
@@ -158,11 +158,11 @@ func printCmd(params []string) {
 		fmt.Println("Wrong number of parameters")
 	}
 
-	k := toKey(params[0])
+	k := toLogin(params[0])
 
 	p := get(k)
 
-	fmt.Printf("Key:         %s\n", p.Key)
+	fmt.Printf("Login:       %s\n", p.Login)
 	fmt.Printf("Password:    %s\n", p.Password)
 	fmt.Printf("Description: %s\n", p.Description)
 }

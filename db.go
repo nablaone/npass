@@ -13,7 +13,7 @@ import (
 )
 
 type Password struct {
-	Key         string
+	Login       string
 	Password    string
 	Description string
 }
@@ -112,22 +112,22 @@ func save() {
 	fmt.Printf("Saved %s\n", dbFileName)
 }
 
-func add(key, pass, description string) {
+func add(login, pass, description string) {
 
 	var p Password
-	p.Key = key
+	p.Login = login
 	p.Password = pass
 	p.Description = description
 
-	database[key] = p
+	database[login] = p
 }
 
-func del(key string) {
-	delete(database, key)
+func del(login string) {
+	delete(database, login)
 }
 
-func get(key string) Password {
-	return database[key]
+func get(login string) Password {
+	return database[login]
 }
 
 func searchMatch(pass Password, q string) bool {
@@ -136,7 +136,7 @@ func searchMatch(pass Password, q string) bool {
 		return true
 	}
 
-	return strings.Contains(pass.Key, q) ||
+	return strings.Contains(pass.Login, q) ||
 		strings.Contains(pass.Description, q)
 }
 
