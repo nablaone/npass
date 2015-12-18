@@ -206,8 +206,10 @@ func repl() {
 		ary := strings.Split(string(line), " ")
 		if len(ary) > 0 {
 			cmd := ary[0]
-			params := ary[1:]
-			call(cmd, params)
+			if cmd != "" {
+				params := ary[1:]
+				call(cmd, params)
+			}
 		}
 	}
 }
