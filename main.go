@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/howeyc/gopass"
 )
 
 var prompt = "npass> "
@@ -49,6 +51,12 @@ func readline() *string {
 
 	var l = string(data)
 	return &l
+}
+
+func readPassword(msg string) *string {
+	fmt.Print(msg)
+	pass := string(gopass.GetPasswd())
+	return &pass
 }
 
 func helpCmd(_ []string) {
@@ -215,6 +223,28 @@ func repl() {
 }
 
 func main() {
+
+	if !exists() {
+		fmt.Println("Creating new database. ")
+		p1 := readPassword("Password: ")
+		p2 := readPassword("Confirm password: ")
+
+		if *p1 != *p2 {
+			fmt.Println("Passwords don't match. Abort.")
+			return
+		}
+		dbPassword = *p1
+
+		create()
+	}
+
+	fmt.Printf("xx = '%s'\n", dbPassword)
+
+	if dbPassword == "" {
+		fmt.Println("Please enter a password")
+		p := readPassword("Password: ")
+		dbPassword = *p
+	}
 
 	err := load()
 	if err != nil {

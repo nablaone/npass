@@ -18,13 +18,14 @@ type Password struct {
 	Description string
 }
 
+// TODO refactor to a struct
 type Database map[string]Password
 
 var database Database
 
 var dbName = ".npass.db"
 var dbFileName string
-var dbPassword = "secret" // TODO ask user
+var dbPassword string = ""
 
 func init() {
 	u, err := user.Current()
@@ -40,9 +41,15 @@ func password() string {
 }
 
 func create() {
-	fmt.Println("creating new db")
 	database = make(Database)
 	save()
+}
+
+func exists() bool {
+	if _, err := os.Stat(dbFileName); os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
 
 func load() (err error) {
@@ -51,11 +58,21 @@ func load() (err error) {
 	defer f.Close()
 
 	if os.IsNotExist(err) {
-		create()
-		return nil
+		return err
 	}
 
+	if err != nil {
+		return fmt.Errorf("couldn't open db file %s: %s", dbFileName, err)
+	}
+
+	// FIXME that's weird solution
+	var tries int = 0
 	promptFunction := func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
+		if tries > 0 {
+			return nil, fmt.Errorf("invalid password")
+		}
+
+		tries++
 		return []byte(password()), nil
 	}
 
