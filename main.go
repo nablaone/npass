@@ -238,8 +238,6 @@ func main() {
 		create()
 	}
 
-	fmt.Printf("xx = '%s'\n", dbPassword)
-
 	if dbPassword == "" {
 		fmt.Println("Please enter a password")
 		p := readPassword("Password: ")
