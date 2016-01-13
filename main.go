@@ -8,16 +8,29 @@ import (
 	"strings"
 
 	"github.com/howeyc/gopass"
+	readline "gopkg.in/readline.v1"
+)
+
+type CommandResult int
+
+const (
+	OK CommandResult = iota
+	NoSuchCommand
+	InvalidNumberOfParameter
+	MissingLoginParamter
+	NothingToShow
+	Quit
+	Abort
 )
 
 var prompt = "npass> "
-var commands map[string]func([]string)
+var commands map[string]func([]string) CommandResult
 var bio *bufio.Reader
 
 var recentSearchResults []Password
 
 func init() {
-	commands = make(map[string]func([]string))
+	commands = make(map[string]func([]string) CommandResult)
 
 	commands["help"] = helpCmd
 	commands["search"] = searchCmd
@@ -26,16 +39,18 @@ func init() {
 	commands["rename"] = renameCmd
 	commands["list"] = listCmd
 	commands["print"] = printCmd
+	commands["quit"] = quitCmd
 
 	bio = bufio.NewReader(os.Stdin)
 	recentSearchResults = make([]Password, 0)
+
 }
 
 // commands
 
 // https://github.com/chzyer/readline
 
-func readline() *string {
+func line() *string {
 
 	data, hasMoreInLine, err := bio.ReadLine()
 
@@ -59,21 +74,26 @@ func readPassword(msg string) *string {
 	return &pass
 }
 
-func helpCmd(_ []string) {
+func quitCmd(_ []string) CommandResult {
+	return Quit
+}
+
+func helpCmd(_ []string) CommandResult {
 	fmt.Println("usage: npass")
 
 	for cmd, _ := range commands {
 		fmt.Printf("%s\n", cmd)
 	}
-
+	return OK
 }
 
-func listCmd(params []string) {
+func listCmd(params []string) CommandResult {
 	var q = []string{""}
-	searchCmd(q)
+	return searchCmd(q)
+
 }
 
-func searchCmd(params []string) {
+func searchCmd(params []string) CommandResult {
 
 	q := ""
 
@@ -86,6 +106,7 @@ func searchCmd(params []string) {
 	for idx, pass := range recentSearchResults {
 		fmt.Printf("%d) %s - %s\n", idx, pass.Login, pass.Description)
 	}
+	return OK
 }
 
 func resetRecentResult() {
@@ -102,28 +123,26 @@ func toLogin(s string) string {
 	return s
 }
 
-func addCmd(params []string) {
+func addCmd(params []string) CommandResult {
 	if len(params) != 1 {
 		fmt.Println("Missing login parameter")
-		return
+		return OK
 	}
 
 	login := params[0]
 
-	fmt.Print("Password: ")
-	var password = readline()
+	//fmt.Print("Password: ")
+	var password = readPassword("Password: ")
 
 	if password == nil || *password == "" {
-		fmt.Println("Aborted.")
-		return
+		return Abort
 	}
 
 	fmt.Print("Description: ")
-	var desc = readline()
+	var desc = line()
 
 	if desc == nil {
-		fmt.Println("Aborted.")
-		return
+		return Abort
 	}
 
 	add(login, *password, *desc)
@@ -132,12 +151,12 @@ func addCmd(params []string) {
 		fmt.Printf("Error while saving %s\n", err)
 	}
 	resetRecentResult()
+	return OK
 }
 
-func delCmd(params []string) {
+func delCmd(params []string) CommandResult {
 	if len(params) != 1 {
-		fmt.Println("Missing key parameter")
-		return
+		return MissingLoginParamter
 	}
 
 	login := toLogin(params[0])
@@ -148,17 +167,22 @@ func delCmd(params []string) {
 		fmt.Printf("Error while saving %s\n", err)
 	}
 	resetRecentResult()
+	return OK
 }
 
-func renameCmd(params []string) {
+func renameCmd(params []string) CommandResult {
 	if len(params) != 2 {
-		fmt.Println("Wrong number of parameters")
+		return InvalidNumberOfParameter
 	}
 
 	from := toLogin(params[0])
 	to := params[1]
 
 	p := get(from)
+
+	if p == nil {
+		return NothingToShow
+	}
 
 	del(p.Login)
 	p.Login = to
@@ -168,46 +192,60 @@ func renameCmd(params []string) {
 	if err != nil {
 		fmt.Printf("Error while saving %s\n", err)
 	}
+	return OK
 }
 
-func printCmd(params []string) {
+func printCmd(params []string) CommandResult {
+	var k string
 	if len(params) != 1 {
-		fmt.Println("Wrong number of parameters")
+		k = toLogin("0")
+	} else {
+		k = toLogin(params[0])
 	}
 
-	k := toLogin(params[0])
-
 	p := get(k)
+
+	if p == nil {
+		return NothingToShow
+	}
 
 	fmt.Printf("Login:       %s\n", p.Login)
 	fmt.Printf("Password:    %s\n", p.Password)
 	fmt.Printf("Description: %s\n", p.Description)
+	return OK
 }
 
-func call(cmd string, params []string) {
+func call(cmd string, params []string) CommandResult {
 
 	fn := commands[cmd]
 	if fn == nil {
-		fmt.Printf("No such command '%s' \n", cmd)
+		return NoSuchCommand
 	} else {
-		fn(params)
+		return fn(params)
 	}
 }
 
 func repl() {
 
+	var items []*readline.PrefixCompleter
+	for k, _ := range commands {
+		items = append(items, readline.PcItem(k))
+	}
+
+	var completer = readline.NewPrefixCompleter(items...)
+
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:       prompt,
+		AutoComplete: completer,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer rl.Close()
+
 	for {
-
-		fmt.Print(prompt)
-
-		line, hasMoreInLine, err := bio.ReadLine()
-
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-
-		if hasMoreInLine == true {
+		line, err := rl.Readline()
+		if err != nil { // io.EOF
 			break
 		}
 
@@ -216,16 +254,46 @@ func repl() {
 			cmd := ary[0]
 			if cmd != "" {
 				params := ary[1:]
-				call(cmd, params)
+
+				switch call(cmd, params) {
+				case OK:
+					//fmt.Println("OK")
+				case Abort:
+					fmt.Println("Aborted")
+				case Quit:
+					return
+				case MissingLoginParamter:
+					fmt.Println("Missing required login parameter")
+				case InvalidNumberOfParameter:
+					fmt.Println("Invalid number of parameters")
+				case NoSuchCommand:
+					fmt.Println("Unknown command")
+				case NothingToShow:
+					fmt.Println("Nothing to display")
+				}
 			}
 		}
 	}
+
+}
+
+func usage() {
+	fmt.Println(`usage:
+
+npass passwords.db`)
 }
 
 func main() {
 
+	if len(os.Args) != 2 {
+		usage()
+		return
+	}
+
+	dbFileName = os.Args[1]
+
 	if !exists() {
-		fmt.Println("Creating new database. ")
+		fmt.Printf("File '%s' doesn't not exists. Creating new database. Press control-c to abort.\n", dbFileName)
 		p1 := readPassword("Password: ")
 		p2 := readPassword("Confirm password: ")
 

@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
-	"os/user"
 	"strings"
 
 	"golang.org/x/crypto/openpgp"
@@ -23,18 +21,8 @@ type Database map[string]Password
 
 var database Database
 
-var dbName = ".npass.db"
 var dbFileName string
 var dbPassword string = ""
-
-func init() {
-	u, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	dbFileName = u.HomeDir + "/" + dbName
-}
 
 func password() string {
 	return dbPassword
@@ -66,6 +54,7 @@ func load() (err error) {
 	}
 
 	// FIXME that's weird solution
+
 	var tries int = 0
 	promptFunction := func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
 		if tries > 0 {
@@ -144,8 +133,12 @@ func del(login string) {
 	delete(database, login)
 }
 
-func get(login string) Password {
-	return database[login]
+func get(login string) *Password {
+	p, exists := database[login]
+	if exists {
+		return &p
+	}
+	return nil
 }
 
 func searchMatch(pass Password, q string) bool {
