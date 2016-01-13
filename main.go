@@ -21,6 +21,7 @@ const (
 	NothingToShow
 	Quit
 	Abort
+	Error
 )
 
 var prompt = "npass> "
@@ -40,6 +41,7 @@ func init() {
 	commands["list"] = listCmd
 	commands["print"] = printCmd
 	commands["quit"] = quitCmd
+	commands["copy"] = copyCmd
 
 	bio = bufio.NewReader(os.Stdin)
 	recentSearchResults = make([]Password, 0)
@@ -195,7 +197,7 @@ func renameCmd(params []string) CommandResult {
 	return OK
 }
 
-func printCmd(params []string) CommandResult {
+func findEntry(params []string) *Password {
 	var k string
 	if len(params) != 1 {
 		k = toLogin("0")
@@ -203,7 +205,12 @@ func printCmd(params []string) CommandResult {
 		k = toLogin(params[0])
 	}
 
-	p := get(k)
+	return get(k)
+}
+
+func printCmd(params []string) CommandResult {
+
+	p := findEntry(params)
 
 	if p == nil {
 		return NothingToShow
@@ -212,6 +219,23 @@ func printCmd(params []string) CommandResult {
 	fmt.Printf("Login:       %s\n", p.Login)
 	fmt.Printf("Password:    %s\n", p.Password)
 	fmt.Printf("Description: %s\n", p.Description)
+	return OK
+}
+
+func copyCmd(params []string) CommandResult {
+
+	p := findEntry(params)
+
+	if p == nil {
+		return NothingToShow
+	}
+
+	err := copyToCliboard(p.Password)
+	if err != nil {
+		return Error
+	}
+	fmt.Printf("Copied to clipboard.\n")
+
 	return OK
 }
 
@@ -267,9 +291,11 @@ func repl() {
 				case InvalidNumberOfParameter:
 					fmt.Println("Invalid number of parameters")
 				case NoSuchCommand:
-					fmt.Println("Unknown command")
+					fmt.Println("Unknown command '%s'", cmd)
 				case NothingToShow:
 					fmt.Println("Nothing to display")
+				case Error:
+					fmt.Println("Error")
 				}
 			}
 		}
