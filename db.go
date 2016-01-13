@@ -89,7 +89,7 @@ func load() (err error) {
 
 func save() error {
 
-	blob, err := json.Marshal(&database)
+	blob, err := json.MarshalIndent(&database, "", "    ")
 	if err != nil {
 		return fmt.Errorf("marshalling failed: %s", err)
 	}
