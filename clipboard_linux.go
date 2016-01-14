@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-func copyToClipboard(s string) err {
-	cmd := exec.Command("cat")
+func copyToCliboard(s string) error {
+	cmd := exec.Command("xsel", "-b", "-i")
 	cmd.Stdin = strings.NewReader(s)
 	err := cmd.Run()
 	if err != nil {
