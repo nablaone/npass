@@ -17,7 +17,7 @@ const (
 	OK CommandResult = iota
 	NoSuchCommand
 	InvalidNumberOfParameter
-	MissingLoginParamter
+	MissingKeyParameter
 	NothingToShow
 	Quit
 	Abort
@@ -29,6 +29,8 @@ var commands map[string]func([]string) CommandResult
 var bio *bufio.Reader
 
 var recentSearchResults []Password
+
+var database *Database
 
 func init() {
 	commands = make(map[string]func([]string) CommandResult)
@@ -103,10 +105,10 @@ func searchCmd(params []string) CommandResult {
 		q = params[0]
 	}
 
-	recentSearchResults = search(q)
+	recentSearchResults = database.Search(q)
 
 	for idx, pass := range recentSearchResults {
-		fmt.Printf("%d) %s - %s\n", idx, pass.Login, pass.Description)
+		fmt.Printf("%d) %s - %s %s\n", idx, pass.Key, pass.Login, pass.Description)
 	}
 	return OK
 }
@@ -115,11 +117,11 @@ func resetRecentResult() {
 	recentSearchResults = []Password{}
 }
 
-func toLogin(s string) string {
+func toKey(s string) string {
 
 	if i, err := strconv.Atoi(s); err == nil {
 		if i >= 0 && i < len(recentSearchResults) {
-			return recentSearchResults[i].Login
+			return recentSearchResults[i].Key
 		}
 	}
 	return s
@@ -131,7 +133,14 @@ func addCmd(params []string) CommandResult {
 		return OK
 	}
 
-	login := params[0]
+	key := params[0]
+
+	fmt.Print("Login: ")
+	var login = line()
+
+	if login == nil || *login == "" {
+		return Abort
+	}
 
 	//fmt.Print("Password: ")
 	var password = readPassword("Password: ")
@@ -147,8 +156,8 @@ func addCmd(params []string) CommandResult {
 		return Abort
 	}
 
-	add(login, *password, *desc)
-	err := save()
+	database.Add(key, *login, *password, *desc)
+	err := database.Save()
 	if err != nil {
 		fmt.Printf("Error while saving %s\n", err)
 	}
@@ -158,13 +167,13 @@ func addCmd(params []string) CommandResult {
 
 func delCmd(params []string) CommandResult {
 	if len(params) != 1 {
-		return MissingLoginParamter
+		return MissingKeyParameter
 	}
 
-	login := toLogin(params[0])
+	key := toKey(params[0])
 
-	del(login)
-	err := save()
+	database.Delete(key)
+	err := database.Save()
 	if err != nil {
 		fmt.Printf("Error while saving %s\n", err)
 	}
@@ -177,20 +186,20 @@ func renameCmd(params []string) CommandResult {
 		return InvalidNumberOfParameter
 	}
 
-	from := toLogin(params[0])
+	from := toKey(params[0])
 	to := params[1]
 
-	p := get(from)
+	p := database.Get(from)
 
 	if p == nil {
 		return NothingToShow
 	}
 
-	del(p.Login)
-	p.Login = to
+	database.Delete(p.Key)
+	p.Key = to
 
-	add(p.Login, p.Password, p.Description)
-	err := save()
+	database.Add(p.Key, p.Login, p.Password, p.Description)
+	err := database.Save()
 	if err != nil {
 		fmt.Printf("Error while saving %s\n", err)
 	}
@@ -200,12 +209,12 @@ func renameCmd(params []string) CommandResult {
 func findEntry(params []string) *Password {
 	var k string
 	if len(params) != 1 {
-		k = toLogin("0")
+		k = toKey("0")
 	} else {
-		k = toLogin(params[0])
+		k = toKey(params[0])
 	}
 
-	return get(k)
+	return database.Get(k)
 }
 
 func printCmd(params []string) CommandResult {
@@ -216,6 +225,7 @@ func printCmd(params []string) CommandResult {
 		return NothingToShow
 	}
 
+	fmt.Printf("Key:         %s\n", p.Key)
 	fmt.Printf("Login:       %s\n", p.Login)
 	fmt.Printf("Password:    %s\n", p.Password)
 	fmt.Printf("Description: %s\n", p.Description)
@@ -286,12 +296,12 @@ func repl() {
 					fmt.Println("Aborted")
 				case Quit:
 					return
-				case MissingLoginParamter:
-					fmt.Println("Missing required login parameter")
+				case MissingKeyParameter:
+					fmt.Println("Missing required key parameter")
 				case InvalidNumberOfParameter:
 					fmt.Println("Invalid number of parameters")
 				case NoSuchCommand:
-					fmt.Println("Unknown command '%s'", cmd)
+					fmt.Println("Unknown command:", cmd)
 				case NothingToShow:
 					fmt.Println("Nothing to display")
 				case Error:
@@ -309,16 +319,25 @@ func usage() {
 npass passwords.db`)
 }
 
+func exists(f string) bool {
+	if _, err := os.Stat(f); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
 func main() {
+
+	var err error
 
 	if len(os.Args) != 2 {
 		usage()
 		return
 	}
 
-	dbFileName = os.Args[1]
+	dbFileName := os.Args[1]
+	dbPassword := ""
 
-	if !exists() {
+	if !exists(dbFileName) {
 		fmt.Printf("File '%s' doesn't not exists. Creating new database. Press control-c to abort.\n", dbFileName)
 		p1 := readPassword("Password: ")
 		p2 := readPassword("Confirm password: ")
@@ -329,24 +348,28 @@ func main() {
 		}
 		dbPassword = *p1
 
-		create()
-	}
+		database = New(dbFileName, dbPassword)
+		err := database.Save()
+		if err != nil {
+			fmt.Printf("Error while saving %s \n", err)
+			return
+		}
+	} else {
 
-	if dbPassword == "" {
 		fmt.Println("Please enter a password")
 		p := readPassword("Password: ")
 		dbPassword = *p
-	}
-
-	err := load()
-	if err != nil {
-		fmt.Printf("Unable to load the database '%s'\n", err)
-		return
+		database = New(dbFileName, dbPassword)
+		err := database.Load()
+		if err != nil {
+			fmt.Printf("Unable to load the database '%s'\n", err)
+			return
+		}
 	}
 
 	repl()
 
-	err = save()
+	err = database.Save()
 	if err != nil {
 		fmt.Printf("Error while saving %s \n", err)
 	}

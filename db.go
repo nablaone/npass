@@ -11,38 +11,30 @@ import (
 )
 
 type Password struct {
+	Key         string
 	Login       string
 	Password    string
 	Description string
 }
 
-// TODO refactor to a struct
-type Database map[string]Password
-
-var database Database
-
-var dbFileName string
-var dbPassword string = ""
-
-func password() string {
-	return dbPassword
+type Database struct {
+	FileName string
+	Password string
+	Entries  map[string]Password
 }
 
-func create() {
-	database = make(Database)
-	save()
-}
-
-func exists() bool {
-	if _, err := os.Stat(dbFileName); os.IsNotExist(err) {
-		return false
+func New(fileName, password string) *Database {
+	database = &Database{
+		FileName: fileName,
+		Password: password,
+		Entries:  make(map[string]Password),
 	}
-	return true
+	return database
 }
 
-func load() (err error) {
+func (d *Database) Load() (err error) {
 
-	f, err := os.Open(dbFileName)
+	f, err := os.Open(d.FileName)
 	defer f.Close()
 
 	if os.IsNotExist(err) {
@@ -50,7 +42,7 @@ func load() (err error) {
 	}
 
 	if err != nil {
-		return fmt.Errorf("couldn't open db file %s: %s", dbFileName, err)
+		return fmt.Errorf("couldn't open db file %s: %s", d.FileName, err)
 	}
 
 	// FIXME that's weird solution
@@ -62,7 +54,7 @@ func load() (err error) {
 		}
 
 		tries++
-		return []byte(password()), nil
+		return []byte(d.Password), nil
 	}
 
 	md, err := openpgp.ReadMessage(f, nil, promptFunction, nil)
@@ -77,31 +69,31 @@ func load() (err error) {
 		return fmt.Errorf("reading decrypted message: %s", err)
 	}
 
-	fmt.Printf("Loading %s\n", dbFileName)
-	err = json.Unmarshal(bytes, &database)
+	fmt.Printf("Loading %s\n", d.FileName)
+	err = json.Unmarshal(bytes, &d.Entries)
 	if err != nil {
 		return fmt.Errorf("unmarshalling failed: %s", err)
 	}
 
-	fmt.Printf("Got %d passwords\n", len(database))
+	fmt.Printf("Got %d passwords\n", len(d.Entries))
 	return nil
 }
 
-func save() error {
+func (d *Database) Save() error {
 
-	blob, err := json.MarshalIndent(&database, "", "    ")
+	blob, err := json.MarshalIndent(&d.Entries, "", "    ")
 	if err != nil {
 		return fmt.Errorf("marshalling failed: %s", err)
 	}
 
-	f, err := os.Create(dbFileName)
+	f, err := os.Create(d.FileName)
 	defer f.Close()
 
 	if err != nil {
-		return fmt.Errorf("creating '%s' failed: %s", dbFileName, err)
+		return fmt.Errorf("creating '%s' failed: %s", d.FileName, err)
 	}
 
-	writer, err := openpgp.SymmetricallyEncrypt(f, []byte(password()), nil, nil)
+	writer, err := openpgp.SymmetricallyEncrypt(f, []byte(d.Password), nil, nil)
 
 	if err != nil {
 		return fmt.Errorf("encryption failed: %s", err)
@@ -110,31 +102,32 @@ func save() error {
 	_, err = writer.Write(blob)
 
 	if err != nil {
-		return fmt.Errorf("writing %s failed: %s", dbFileName, err)
+		return fmt.Errorf("writing %s failed: %s", d.FileName, err)
 	}
 
 	writer.Close()
 
-	fmt.Printf("Saved %s\n", dbFileName)
+	fmt.Printf("Saved %s\n", d.FileName)
 	return nil
 }
 
-func add(login, pass, description string) {
+func (d *Database) Add(key, login, pass, description string) {
 
 	var p Password
+	p.Key = key
 	p.Login = login
 	p.Password = pass
 	p.Description = description
 
-	database[login] = p
+	d.Entries[key] = p
 }
 
-func del(login string) {
-	delete(database, login)
+func (d *Database) Delete(key string) {
+	delete(d.Entries, key)
 }
 
-func get(login string) *Password {
-	p, exists := database[login]
+func (d *Database) Get(key string) *Password {
+	p, exists := d.Entries[key]
 	if exists {
 		return &p
 	}
@@ -151,10 +144,10 @@ func searchMatch(pass Password, q string) bool {
 		strings.Contains(pass.Description, q)
 }
 
-func search(q string) []Password {
+func (d *Database) Search(q string) []Password {
 	var res = []Password{}
 
-	for _, pass := range database {
+	for _, pass := range d.Entries {
 		if searchMatch(pass, q) {
 			res = append(res, pass)
 		}
