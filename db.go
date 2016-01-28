@@ -10,6 +10,10 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
+//
+// Password keeps login, password and other
+// this should be called Entry.
+//
 type Password struct {
 	Key         string
 	Login       string
@@ -17,12 +21,18 @@ type Password struct {
 	Description string
 }
 
+//
+// Database holds entries and metainfo
+//
 type Database struct {
 	FileName string
 	Password string
 	Entries  map[string]Password
 }
 
+//
+// New crates a database instance. It doesn't open/create a file.
+//
 func New(fileName, password string) *Database {
 	database = &Database{
 		FileName: fileName,
@@ -32,6 +42,9 @@ func New(fileName, password string) *Database {
 	return database
 }
 
+//
+// Load reads a file.
+//
 func (d *Database) Load() (err error) {
 
 	f, err := os.Open(d.FileName)
@@ -47,7 +60,7 @@ func (d *Database) Load() (err error) {
 
 	// FIXME that's weird solution
 
-	var tries int = 0
+	var tries int
 	promptFunction := func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
 		if tries > 0 {
 			return nil, fmt.Errorf("invalid password")
@@ -79,6 +92,9 @@ func (d *Database) Load() (err error) {
 	return nil
 }
 
+//
+// Save stores database into a file.
+//
 func (d *Database) Save() error {
 
 	blob, err := json.MarshalIndent(&d.Entries, "", "    ")
@@ -111,6 +127,9 @@ func (d *Database) Save() error {
 	return nil
 }
 
+//
+// Add add entry to a database.
+//
 func (d *Database) Add(key, login, pass, description string) {
 
 	var p Password
@@ -122,10 +141,16 @@ func (d *Database) Add(key, login, pass, description string) {
 	d.Entries[key] = p
 }
 
+//
+// Delete deletes entry.
+//
 func (d *Database) Delete(key string) {
 	delete(d.Entries, key)
 }
 
+//
+// Get retrieves entry if any otherwise returns nil.
+//
 func (d *Database) Get(key string) *Password {
 	p, exists := d.Entries[key]
 	if exists {
@@ -144,6 +169,9 @@ func searchMatch(pass Password, q string) bool {
 		strings.Contains(pass.Description, q)
 }
 
+//
+// Search returns entries matching query.
+//
 func (d *Database) Search(q string) []Password {
 	var res = []Password{}
 
