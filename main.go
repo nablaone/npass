@@ -108,7 +108,7 @@ func searchCmd(params []string) CommandResult {
 	recentSearchResults = database.Search(q)
 
 	for idx, pass := range recentSearchResults {
-		fmt.Printf("%d) %s - %s %s\n", idx, pass.Key, pass.Login, pass.Description)
+		fmt.Printf("%d) %s - %s\n", idx, pass.Key, pass.Description)
 	}
 	return OK
 }
