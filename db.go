@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/crypto/openpgp"
+	"github.com/nablaone/npass/Godeps/_workspace/src/golang.org/x/crypto/openpgp"
 )
 
 //

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/howeyc/gopass"
-	readline "gopkg.in/readline.v1"
+	"github.com/nablaone/npass/Godeps/_workspace/src/github.com/howeyc/gopass"
+	readline "github.com/nablaone/npass/Godeps/_workspace/src/gopkg.in/readline.v1"
 )
 
 type cmdResult int
