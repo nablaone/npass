@@ -74,8 +74,12 @@ func line() *string {
 
 func readPassword(msg string) *string {
 	fmt.Print(msg)
-	pass := string(gopass.GetPasswd())
-	return &pass
+	pass, err := gopass.GetPasswd()
+	if err != nil {
+		return nil
+	}
+	str := string(pass)
+	return &str
 }
 
 func quitCmd(_ []string) cmdResult {
