@@ -19,6 +19,7 @@ const (
 	invalidNumberOfParameter
 	missingKeyParameter
 	nothingToShow
+	alreadyExists
 	quit
 	abort
 	otherError
@@ -29,7 +30,7 @@ var commands map[string]func([]string) cmdResult
 var bio *bufio.Reader
 
 var recentSearchResults []Password
-
+var recentKey *string
 var database *Database
 
 func init() {
@@ -119,6 +120,7 @@ func searchCmd(params []string) cmdResult {
 
 func resetRecentResult() {
 	recentSearchResults = []Password{}
+	recentKey = nil
 }
 
 func toKey(s string) string {
@@ -138,6 +140,12 @@ func addCmd(params []string) cmdResult {
 	}
 
 	key := params[0]
+
+	if database.Get(key) != nil {
+		return alreadyExists
+	}
+
+	recentKey = &key
 
 	fmt.Print("Login: ")
 	var login = line()
@@ -170,12 +178,12 @@ func addCmd(params []string) cmdResult {
 }
 
 func editCmd(params []string) cmdResult {
-	if len(params) != 1 {
-		fmt.Println("Missing login parameter")
-		return ok
-	}
 
 	p := findEntry(params)
+
+	if p == nil {
+		return missingKeyParameter
+	}
 
 	fmt.Printf("Login[%s]: ", p.Login)
 	var login = line()
@@ -251,12 +259,22 @@ func renameCmd(params []string) cmdResult {
 func findEntry(params []string) *Password {
 	var k string
 	if len(params) != 1 {
-		k = toKey("0")
+		if recentKey == nil {
+			k = toKey("0")
+		} else {
+			k = toKey(*recentKey)
+		}
 	} else {
 		k = toKey(params[0])
 	}
 
-	return database.Get(k)
+	res := database.Get(k)
+
+	if res != nil {
+		recentKey = &k
+	}
+
+	return res
 }
 
 func printCmd(params []string) cmdResult {
@@ -346,7 +364,9 @@ func repl() {
 					fmt.Println("Unknown command:", cmd)
 				case nothingToShow:
 					fmt.Println("Nothing to display")
-				case otherError:
+				case alreadyExists:
+					fmt.Println("Already exists")
+				default:
 					fmt.Println("Error")
 				}
 			}
