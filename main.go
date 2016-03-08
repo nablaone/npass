@@ -36,12 +36,12 @@ func init() {
 	commands = make(map[string]func([]string) cmdResult)
 
 	commands["help"] = helpCmd
-	commands["search"] = searchCmd
 	commands["add"] = addCmd
+	commands["edit"] = editCmd
 	commands["delete"] = delCmd
 	commands["rename"] = renameCmd
-	commands["list"] = listCmd
-	commands["print"] = printCmd
+	commands["list"] = searchCmd
+	commands["show"] = printCmd
 	commands["quit"] = quitCmd
 	commands["copy"] = copyCmd
 
@@ -161,6 +161,44 @@ func addCmd(params []string) cmdResult {
 	}
 
 	database.Add(key, *login, *password, *desc)
+	err := database.Save()
+	if err != nil {
+		fmt.Printf("Error while saving %s\n", err)
+	}
+	resetRecentResult()
+	return ok
+}
+
+func editCmd(params []string) cmdResult {
+	if len(params) != 1 {
+		fmt.Println("Missing login parameter")
+		return ok
+	}
+
+	p := findEntry(params)
+
+	fmt.Printf("Login[%s]: ", p.Login)
+	var login = line()
+
+	if login == nil || *login == "" {
+		login = &p.Login
+	}
+
+	//fmt.Print("Password: ")
+	var password = readPassword("Password: ")
+
+	if password == nil || *password == "" {
+		password = &p.Password
+	}
+
+	fmt.Printf("Description[%s]: ", p.Description)
+	var desc = line()
+
+	if desc == nil || *desc == "" {
+		desc = &p.Description
+	}
+
+	database.Add(p.Key, *login, *password, *desc)
 	err := database.Save()
 	if err != nil {
 		fmt.Printf("Error while saving %s\n", err)
