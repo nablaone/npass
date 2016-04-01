@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/nablaone/npass",
-	"GoVersion": "go1.5",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v60",
 	"Deps": [
 		{
 			"ImportPath": "github.com/chzyer/readline/runes",
@@ -17,6 +18,26 @@
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/openpgp",
+			"Rev": "1f22c0103821b9390939b6776727195525381532"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp/armor",
+			"Rev": "1f22c0103821b9390939b6776727195525381532"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp/elgamal",
+			"Rev": "1f22c0103821b9390939b6776727195525381532"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp/errors",
+			"Rev": "1f22c0103821b9390939b6776727195525381532"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp/packet",
+			"Rev": "1f22c0103821b9390939b6776727195525381532"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp/s2k",
 			"Rev": "1f22c0103821b9390939b6776727195525381532"
 		},
 		{
