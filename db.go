@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"golang.org/x/crypto/openpgp"
@@ -169,6 +170,12 @@ func searchMatch(pass Password, q string) bool {
 		strings.Contains(pass.Description, q)
 }
 
+type byName []Password
+
+func (s byName) Len() int           { return len(s) }
+func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s byName) Less(i, j int) bool { return s[i].Key < s[j].Key }
+
 //
 // Search returns entries matching query.
 //
@@ -181,5 +188,6 @@ func (d *Database) Search(q string) []Password {
 		}
 	}
 
+	sort.Sort(byName(res))
 	return res
 }
