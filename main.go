@@ -42,7 +42,9 @@ func init() {
 	commands["delete"] = delCmd
 	commands["rename"] = renameCmd
 	commands["list"] = searchCmd
+	commands["ls"] = searchCmd
 	commands["show"] = printCmd
+	commands["cat"] = printCmd
 	commands["quit"] = quitCmd
 	commands["copy"] = copyCmd
 
