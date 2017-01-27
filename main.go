@@ -7,6 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"math/rand"
+	"time"
+
 	"github.com/howeyc/gopass"
 	readline "gopkg.in/readline.v1"
 )
@@ -47,6 +50,8 @@ func init() {
 	commands["cat"] = printCmd
 	commands["quit"] = quitCmd
 	commands["copy"] = copyCmd
+	commands["generate"] = generateCmd
+	commands["gen"] = generateCmd
 
 	bio = bufio.NewReader(os.Stdin)
 	recentSearchResults = make([]Password, 0)
@@ -132,6 +137,7 @@ func toKey(s string) string {
 			return recentSearchResults[i].Key
 		}
 	}
+
 	return s
 }
 
@@ -307,6 +313,58 @@ func copyCmd(params []string) cmdResult {
 		return otherError
 	}
 	fmt.Printf("Copied to clipboard.\n")
+
+	return ok
+}
+
+func init() {
+	rand.Seed(time.Now().Unix())
+}
+
+func shuffle(ary []byte) {
+
+	for i := 0; i < 5; i++ {
+		a, b := rand.Intn(len(ary)), rand.Intn(len(ary))
+
+		tmp := ary[a]
+		ary[a] = ary[b]
+		ary[b] = tmp
+
+	}
+
+}
+
+func generatePassword() string {
+	len := 12
+	res := make([]byte, len)
+
+	for i := 0; i < len; i++ {
+
+		var x int
+		switch i % 10 {
+		case 0:
+			x = 48 + rand.Intn(10)
+		case 1:
+			x = 42 + rand.Intn(5)
+		case 2:
+			x = 65 + rand.Intn(26)
+		default:
+			x = 97 + rand.Intn(26)
+
+		}
+
+		res[i] = byte(x)
+	}
+	shuffle(res)
+	return string(res)
+
+}
+
+func generateCmd(params []string) cmdResult {
+
+	for i := 0; i < 10; i++ {
+		fmt.Println(generatePassword())
+	}
 
 	return ok
 }
