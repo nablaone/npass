@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"math/rand"
 	"time"
@@ -118,10 +119,13 @@ func searchCmd(params []string) cmdResult {
 	}
 
 	recentSearchResults = database.Search(q)
-
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	for idx, pass := range recentSearchResults {
-		fmt.Printf("%d) %s - %s\n", idx, pass.Key, pass.Description)
+		fmt.Fprintf(w, "%d)\t%s \t-\t%s\t\n", idx, pass.Key, pass.Description)
 	}
+
+	w.Flush()
+
 	return ok
 }
 
