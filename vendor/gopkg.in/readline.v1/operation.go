@@ -2,16 +2,20 @@ package readline
 
 import (
 	"errors"
-	"fmt"
 	"io"
-	"os"
-
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
 	ErrInterrupt = errors.New("Interrupt")
 )
+
+type InterruptError struct {
+	Line []rune
+}
+
+func (*InterruptError) Error() string {
+	return "Interrupted"
+}
 
 type Operation struct {
 	cfg     *Config
@@ -21,7 +25,7 @@ type Operation struct {
 	errchan chan error
 	w       io.Writer
 
-	*opHistory
+	history *opHistory
 	*opSearch
 	*opCompleter
 	*opPassword
@@ -57,17 +61,24 @@ func (w *wrapWriter) Write(b []byte) (int, error) {
 }
 
 func NewOperation(t *Terminal, cfg *Config) *Operation {
+	width := cfg.FuncGetWidth()
 	op := &Operation{
 		t:       t,
-		buf:     NewRuneBuffer(t, cfg.Prompt, cfg.MaskRune),
+		buf:     NewRuneBuffer(t, cfg.Prompt, cfg, width),
 		outchan: make(chan []rune),
 		errchan: make(chan error),
 	}
 	op.w = op.buf.w
 	op.SetConfig(cfg)
 	op.opVim = newVimMode(op)
-	op.opCompleter = newOpCompleter(op.buf.w, op)
+	op.opCompleter = newOpCompleter(op.buf.w, op, width)
 	op.opPassword = newOpPassword(op)
+	op.cfg.FuncOnWidthChanged(func() {
+		newWidth := cfg.FuncGetWidth()
+		op.opCompleter.OnWidthChange(newWidth)
+		op.opSearch.OnWidthChange(newWidth)
+		op.buf.OnWidthChange(newWidth)
+	})
 	go op.ioloop()
 	return op
 }
@@ -85,6 +96,20 @@ func (o *Operation) ioloop() {
 		keepInSearchMode := false
 		keepInCompleteMode := false
 		r := o.t.ReadRune()
+		if r == 0 { // io.EOF
+			if o.buf.Len() == 0 {
+				o.buf.Clean()
+				select {
+				case o.errchan <- io.EOF:
+				}
+				break
+			} else {
+				// if stdin got io.EOF and there is something left in buffer,
+				// let's flush them by sending CharEnter.
+				// And we will got io.EOF int next loop.
+				r = CharEnter
+			}
+		}
 		isUpdateHistory := true
 
 		if o.IsInCompleteSelectMode() {
@@ -96,7 +121,7 @@ func (o *Operation) ioloop() {
 			o.buf.Refresh(nil)
 			switch r {
 			case CharEnter, CharCtrlJ:
-				o.UpdateHistory(o.buf.Runes(), false)
+				o.history.Update(o.buf.Runes(), false)
 				fallthrough
 			case CharInterrupt:
 				o.t.KickRead()
@@ -168,6 +193,13 @@ func (o *Operation) ioloop() {
 			if o.IsInCompleteMode() {
 				o.OnComplete()
 			}
+		case CharCtrlZ:
+			o.buf.Clean()
+			o.t.SleepToResume()
+			o.Refresh()
+		case CharCtrlL:
+			ClearScreen(o.w)
+			o.Refresh()
 		case MetaBackspace, CharCtrlW:
 			o.buf.BackEscapeWord()
 		case CharEnter, CharCtrlJ:
@@ -175,24 +207,35 @@ func (o *Operation) ioloop() {
 				o.ExitSearchMode(false)
 			}
 			o.buf.MoveToLineEnd()
-			o.buf.WriteRune('\n')
-			data := o.buf.Reset()
-			data = data[:len(data)-1] // trim \n
+			var data []rune
+			if !o.cfg.UniqueEditLine {
+				o.buf.WriteRune('\n')
+				data = o.buf.Reset()
+				data = data[:len(data)-1] // trim \n
+			} else {
+				o.buf.Clean()
+				data = o.buf.Reset()
+			}
 			o.outchan <- data
-			o.NewHistory(data)
+			if !o.cfg.DisableAutoSaveHistory {
+				// ignore IO error
+				_ = o.history.New(data)
+			} else {
+				isUpdateHistory = false
+			}
 		case CharBackward:
 			o.buf.MoveBackward()
 		case CharForward:
 			o.buf.MoveForward()
 		case CharPrev:
-			buf := o.PrevHistory()
+			buf := o.history.Prev()
 			if buf != nil {
 				o.buf.Set(buf)
 			} else {
 				o.t.Bell()
 			}
 		case CharNext:
-			buf, ok := o.NextHistory()
+			buf, ok := o.history.Next()
 			if ok {
 				o.buf.Set(buf)
 			} else {
@@ -208,11 +251,16 @@ func (o *Operation) ioloop() {
 			}
 
 			// treat as EOF
-			o.buf.WriteString(o.cfg.EOFPrompt + "\n")
+			if !o.cfg.UniqueEditLine {
+				o.buf.WriteString(o.cfg.EOFPrompt + "\n")
+			}
 			o.buf.Reset()
 			isUpdateHistory = false
-			o.RevertHistory()
+			o.history.Revert()
 			o.errchan <- io.EOF
+			if o.cfg.UniqueEditLine {
+				o.buf.Clean()
+			}
 		case CharInterrupt:
 			if o.IsSearchMode() {
 				o.t.KickRead()
@@ -227,11 +275,17 @@ func (o *Operation) ioloop() {
 			}
 			o.buf.MoveToLineEnd()
 			o.buf.Refresh(nil)
-			o.buf.WriteString(o.cfg.InterruptPrompt + "\n")
-			o.buf.Reset()
+			hint := o.cfg.InterruptPrompt + "\n"
+			if !o.cfg.UniqueEditLine {
+				o.buf.WriteString(hint)
+			}
+			remain := o.buf.Reset()
+			if !o.cfg.UniqueEditLine {
+				remain = remain[:len(remain)-len([]rune(hint))]
+			}
 			isUpdateHistory = false
-			o.RevertHistory()
-			o.errchan <- ErrInterrupt
+			o.history.Revert()
+			o.errchan <- &InterruptError{remain}
 		default:
 			if o.IsSearchMode() {
 				o.SearchChar(r)
@@ -265,7 +319,8 @@ func (o *Operation) ioloop() {
 			}
 		}
 		if isUpdateHistory && !o.IsSearchMode() {
-			o.UpdateHistory(o.buf.Runes(), false)
+			// it will cause null history
+			o.history.Update(o.buf.Runes(), false)
 		}
 	}
 }
@@ -280,10 +335,7 @@ func (o *Operation) Stdout() io.Writer {
 
 func (o *Operation) String() (string, error) {
 	r, err := o.Runes()
-	if err != nil {
-		return "", err
-	}
-	return string(r), nil
+	return string(r), err
 }
 
 func (o *Operation) Runes() ([]rune, error) {
@@ -299,6 +351,9 @@ func (o *Operation) Runes() ([]rune, error) {
 	case r := <-o.outchan:
 		return r, nil
 	case err := <-o.errchan:
+		if e, ok := err.(*InterruptError); ok {
+			return e.Line, ErrInterrupt
+		}
 		return nil, err
 	}
 }
@@ -323,16 +378,7 @@ func (o *Operation) PasswordWithConfig(cfg *Config) ([]byte, error) {
 }
 
 func (o *Operation) Password(prompt string) ([]byte, error) {
-	w := o.Stdout()
-	if prompt != "" {
-		fmt.Fprintf(w, prompt)
-	}
-	o.t.EnterRawMode()
-	defer o.t.ExitRawMode()
-
-	b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Fprint(w, "\r\n")
-	return b, err
+	return o.PasswordEx(prompt, nil)
 }
 
 func (o *Operation) SetTitle(t string) {
@@ -348,15 +394,15 @@ func (o *Operation) Slice() ([]byte, error) {
 }
 
 func (o *Operation) Close() {
-	o.opHistory.CloseHistory()
+	o.history.Close()
 }
 
 func (o *Operation) SetHistoryPath(path string) {
-	if o.opHistory != nil {
-		o.opHistory.CloseHistory()
+	if o.history != nil {
+		o.history.Close()
 	}
 	o.cfg.HistoryFile = path
-	o.opHistory = newOpHistory(o.cfg)
+	o.history = newOpHistory(o.cfg)
 }
 
 func (o *Operation) IsNormalMode() bool {
@@ -374,26 +420,46 @@ func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
 	op.cfg = cfg
 	op.SetPrompt(cfg.Prompt)
 	op.SetMaskRune(cfg.MaskRune)
+	op.buf.SetConfig(cfg)
+	width := op.cfg.FuncGetWidth()
 
 	if cfg.opHistory == nil {
 		op.SetHistoryPath(cfg.HistoryFile)
-		cfg.opHistory = op.opHistory
-		cfg.opSearch = newOpSearch(op.buf.w, op.buf, op.opHistory)
+		cfg.opHistory = op.history
+		cfg.opSearch = newOpSearch(op.buf.w, op.buf, op.history, cfg, width)
 	}
-	op.opHistory = cfg.opHistory
+	op.history = cfg.opHistory
 
 	// SetHistoryPath will close opHistory which already exists
 	// so if we use it next time, we need to reopen it by `InitHistory()`
-	op.opHistory.InitHistory()
+	op.history.Init()
+
+	if op.cfg.AutoComplete != nil {
+		op.opCompleter = newOpCompleter(op.buf.w, op, width)
+	}
 
 	op.opSearch = cfg.opSearch
 	return old, nil
+}
+
+func (o *Operation) ResetHistory() {
+	o.history.Reset()
+}
+
+// if err is not nil, it just mean it fail to write to file
+// other things goes fine.
+func (o *Operation) SaveHistory(content string) error {
+	return o.history.New([]rune(content))
 }
 
 func (o *Operation) Refresh() {
 	if o.t.IsReading() {
 		o.buf.Refresh(nil)
 	}
+}
+
+func (o *Operation) Clean() {
+	o.buf.Clean()
 }
 
 func FuncListener(f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)) Listener {

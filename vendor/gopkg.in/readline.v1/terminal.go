@@ -3,21 +3,20 @@ package readline
 import (
 	"bufio"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
-
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type Terminal struct {
 	cfg       *Config
-	state     *terminal.State
 	outchan   chan rune
 	closed    int32
 	stopChan  chan struct{}
 	kickChan  chan struct{}
 	wg        sync.WaitGroup
 	isReading int32
+	sleeping  int32
 }
 
 func NewTerminal(cfg *Config) (*Terminal, error) {
@@ -35,20 +34,26 @@ func NewTerminal(cfg *Config) (*Terminal, error) {
 	return t, nil
 }
 
+// SleepToResume will sleep myself, and return only if I'm resumed.
+func (t *Terminal) SleepToResume() {
+	if !atomic.CompareAndSwapInt32(&t.sleeping, 0, 1) {
+		return
+	}
+	defer atomic.StoreInt32(&t.sleeping, 0)
+
+	t.ExitRawMode()
+	ch := WaitForResume()
+	SuspendMe()
+	<-ch
+	t.EnterRawMode()
+}
+
 func (t *Terminal) EnterRawMode() (err error) {
-	t.state, err = MakeRaw(StdinFd)
-	return err
+	return t.cfg.FuncMakeRaw()
 }
 
 func (t *Terminal) ExitRawMode() (err error) {
-	if t.state == nil {
-		return
-	}
-	err = Restore(StdinFd, t.state)
-	if err == nil {
-		t.state = nil
-	}
-	return err
+	return t.cfg.FuncExitRaw()
 }
 
 func (t *Terminal) Write(b []byte) (int, error) {
@@ -67,8 +72,13 @@ func (t *Terminal) Readline() *Operation {
 	return NewOperation(t, t.cfg)
 }
 
+// return rune(0) if meet EOF
 func (t *Terminal) ReadRune() rune {
-	return <-t.outchan
+	ch, ok := <-t.outchan
+	if !ok {
+		return rune(0)
+	}
+	return ch
 }
 
 func (t *Terminal) IsReading() bool {
@@ -91,7 +101,7 @@ func (t *Terminal) ioloop() {
 		expectNextChar bool
 	)
 
-	buf := bufio.NewReader(Stdin)
+	buf := bufio.NewReader(t.cfg.Stdin)
 	for {
 		if !expectNextChar {
 			atomic.StoreInt32(&t.isReading, 0)
@@ -105,6 +115,10 @@ func (t *Terminal) ioloop() {
 		expectNextChar = false
 		r, _, err := buf.ReadRune()
 		if err != nil {
+			if strings.Contains(err.Error(), "interrupted system call") {
+				expectNextChar = true
+				continue
+			}
 			break
 		}
 
@@ -115,7 +129,7 @@ func (t *Terminal) ioloop() {
 				isEscapeEx = true
 				continue
 			}
-			r = escapeKey(r)
+			r = escapeKey(r, buf)
 		} else if isEscapeEx {
 			isEscapeEx = false
 			r = escapeExKey(r, buf)
@@ -136,6 +150,7 @@ func (t *Terminal) ioloop() {
 			t.outchan <- r
 		}
 	}
+	close(t.outchan)
 }
 
 func (t *Terminal) Bell() {

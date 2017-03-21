@@ -1,0 +1,16 @@
+{
+    "dependencies": {
+        "github.com/chzyer/readline": {
+            "revision": "94a70819f40e8ea2c1bda8ff92717bf26fc4c119"
+        },
+        "github.com/howeyc/gopass": {
+            "revision": "44476384cd4721b68705e72f19e95d1a3a504370"
+        },
+        "golang.org/x/crypto": {
+            "revision": "1f22c0103821b9390939b6776727195525381532"
+        },
+        "gopkg.in/readline.v1": {
+            "version": "^1.4.0"
+        }
+    }
+}

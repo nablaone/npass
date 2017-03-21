@@ -385,7 +385,7 @@ func call(cmd string, params []string) cmdResult {
 
 func repl() {
 
-	var items []*readline.PrefixCompleter
+	var items []readline.PrefixCompleterInterface
 	for k := range commands {
 		items = append(items, readline.PcItem(k))
 	}

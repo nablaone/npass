@@ -3,10 +3,9 @@ package readline
 import (
 	"bufio"
 	"container/list"
+	"fmt"
 	"os"
 	"strings"
-
-	"github.com/chzyer/readline/runes"
 )
 
 type hisItem struct {
@@ -36,11 +35,16 @@ func newOpHistory(cfg *Config) (o *opHistory) {
 	return o
 }
 
+func (o *opHistory) Reset() {
+	o.history = list.New()
+	o.current = nil
+}
+
 func (o *opHistory) IsHistoryClosed() bool {
 	return o.fd.Fd() == ^(uintptr(0))
 }
 
-func (o *opHistory) InitHistory() {
+func (o *opHistory) Init() {
 	if o.IsHistoryClosed() {
 		o.initHistory()
 	}
@@ -62,28 +66,33 @@ func (o *opHistory) historyUpdatePath(path string) {
 	r := bufio.NewReader(o.fd)
 	total := 0
 	for ; ; total++ {
-		line, err := r.ReadSlice('\n')
+		line, err := r.ReadString('\n')
 		if err != nil {
 			break
 		}
-		o.PushHistory([]rune(strings.TrimSpace(string(line))))
-		o.CompactHistory()
+		// ignore the empty line
+		line = strings.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+		o.Push([]rune(line))
+		o.Compact()
 	}
 	if total > o.cfg.HistoryLimit {
-		o.HistoryRewrite()
+		o.Rewrite()
 	}
 	o.historyVer++
-	o.PushHistory(nil)
+	o.Push(nil)
 	return
 }
 
-func (o *opHistory) CompactHistory() {
+func (o *opHistory) Compact() {
 	for o.history.Len() > o.cfg.HistoryLimit && o.history.Len() > 0 {
 		o.history.Remove(o.history.Front())
 	}
 }
 
-func (o *opHistory) HistoryRewrite() {
+func (o *opHistory) Rewrite() {
 	if o.cfg.HistoryFile == "" {
 		return
 	}
@@ -113,13 +122,13 @@ func (o *opHistory) HistoryRewrite() {
 	o.fd = fd
 }
 
-func (o *opHistory) CloseHistory() {
+func (o *opHistory) Close() {
 	if o.fd != nil {
 		o.fd.Close()
 	}
 }
 
-func (o *opHistory) FindHistoryBck(isNewSearch bool, rs []rune, start int) (int, *list.Element) {
+func (o *opHistory) FindBck(isNewSearch bool, rs []rune, start int) (int, *list.Element) {
 	for elem := o.current; elem != nil; elem = elem.Prev() {
 		item := o.showItem(elem.Value)
 		if isNewSearch {
@@ -139,7 +148,7 @@ func (o *opHistory) FindHistoryBck(isNewSearch bool, rs []rune, start int) (int,
 	return -1, nil
 }
 
-func (o *opHistory) FindHistoryFwd(isNewSearch bool, rs []rune, start int) (int, *list.Element) {
+func (o *opHistory) FindFwd(isNewSearch bool, rs []rune, start int) (int, *list.Element) {
 	for elem := o.current; elem != nil; elem = elem.Next() {
 		item := o.showItem(elem.Value)
 		if isNewSearch {
@@ -175,7 +184,7 @@ func (o *opHistory) showItem(obj interface{}) []rune {
 	return item.Source
 }
 
-func (o *opHistory) PrevHistory() []rune {
+func (o *opHistory) Prev() []rune {
 	if o.current == nil {
 		return nil
 	}
@@ -184,10 +193,10 @@ func (o *opHistory) PrevHistory() []rune {
 		return nil
 	}
 	o.current = current
-	return o.showItem(current.Value)
+	return runes.Copy(o.showItem(current.Value))
 }
 
-func (o *opHistory) NextHistory() ([]rune, bool) {
+func (o *opHistory) Next() ([]rune, bool) {
 	if o.current == nil {
 		return nil, false
 	}
@@ -197,76 +206,91 @@ func (o *opHistory) NextHistory() ([]rune, bool) {
 	}
 
 	o.current = current
-	return o.showItem(current.Value), true
+	return runes.Copy(o.showItem(current.Value)), true
 }
 
-func (o *opHistory) NewHistory(current []rune) {
+func (o *opHistory) debug() {
+	Debug("-------")
+	for item := o.history.Front(); item != nil; item = item.Next() {
+		Debug(fmt.Sprintf("%+v", item.Value))
+	}
+}
+
+// save history
+func (o *opHistory) New(current []rune) (err error) {
+	current = runes.Copy(current)
+
 	// if just use last command without modify
 	// just clean lastest history
 	if back := o.history.Back(); back != nil {
 		prev := back.Prev()
 		if prev != nil {
-			use := o.showItem(o.current.Value.(*hisItem))
-			if runes.Equal(use, prev.Value.(*hisItem).Source) {
+			if runes.Equal(current, prev.Value.(*hisItem).Source) {
 				o.current = o.history.Back()
 				o.current.Value.(*hisItem).Clean()
 				o.historyVer++
-				return
+				return nil
 			}
 		}
 	}
+
 	if len(current) == 0 {
 		o.current = o.history.Back()
 		if o.current != nil {
 			o.current.Value.(*hisItem).Clean()
 			o.historyVer++
-			return
+			return nil
 		}
 	}
 
 	if o.current != o.history.Back() {
 		// move history item to current command
-		use := o.current.Value.(*hisItem)
+		currentItem := o.current.Value.(*hisItem)
+		// set current to last item
 		o.current = o.history.Back()
-		current = use.Tmp
+
+		current = runes.Copy(currentItem.Tmp)
 	}
 
-	o.UpdateHistory(current, true)
+	// err only can be a IO error, just report
+	err = o.Update(current, true)
 
 	// push a new one to commit current command
 	o.historyVer++
-	o.PushHistory(nil)
+	o.Push(nil)
+	return
 }
 
-func (o *opHistory) RevertHistory() {
+func (o *opHistory) Revert() {
 	o.historyVer++
 	o.current = o.history.Back()
 }
 
-func (o *opHistory) UpdateHistory(s []rune, commit bool) {
+func (o *opHistory) Update(s []rune, commit bool) (err error) {
+	s = runes.Copy(s)
 	if o.current == nil {
-		o.PushHistory(s)
-		o.CompactHistory()
+		o.Push(s)
+		o.Compact()
 		return
 	}
 	r := o.current.Value.(*hisItem)
 	r.Version = o.historyVer
 	if commit {
-		r.Source = make([]rune, len(s))
-		copy(r.Source, s)
+		r.Source = s
 		if o.fd != nil {
-			o.fd.Write([]byte(string(r.Source) + "\n"))
+			// just report the error
+			_, err = o.fd.Write([]byte(string(r.Source) + "\n"))
 		}
 	} else {
 		r.Tmp = append(r.Tmp[:0], s...)
 	}
 	o.current.Value = r
-	o.CompactHistory()
+	o.Compact()
+	return
 }
 
-func (o *opHistory) PushHistory(s []rune) {
-	newCopy := make([]rune, len(s))
-	copy(newCopy, s)
-	elem := o.history.PushBack(&hisItem{Source: newCopy})
+func (o *opHistory) Push(s []rune) {
+	s = runes.Copy(s)
+	elem := o.history.PushBack(&hisItem{Source: s})
 	o.current = elem
 }

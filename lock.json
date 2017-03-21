@@ -1,0 +1,28 @@
+{
+    "memo": "7f64dd38f465fbfd98e2513040d179b71792fca90db3b666ca356f9fff343150",
+    "projects": [
+        {
+            "name": "github.com/howeyc/gopass",
+            "revision": "44476384cd4721b68705e72f19e95d1a3a504370",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "golang.org/x/crypto",
+            "revision": "1f22c0103821b9390939b6776727195525381532",
+            "packages": [
+                "openpgp",
+                "ssh/terminal"
+            ]
+        },
+        {
+            "name": "gopkg.in/readline.v1",
+            "version": "v1.4",
+            "revision": "62c6fe6193755f722b8b8788aa7357be55a50ff1",
+            "packages": [
+                "."
+            ]
+        }
+    ]
+}

@@ -2,8 +2,10 @@
 
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE.md)
 [![Build Status](https://travis-ci.org/chzyer/readline.svg?branch=master)](https://travis-ci.org/chzyer/readline)
-[![GoDoc](https://godoc.org/github.com/chzyer/readline?status.svg)](https://godoc.org/github.com/chzyer/readline)  
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/chzyer/readline?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![GoDoc](https://godoc.org/github.com/chzyer/readline?status.svg)](https://godoc.org/github.com/chzyer/readline)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/chzyer/readline?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) 
+[![OpenCollective](https://opencollective.com/readline/badge/backers.svg)](#backers)
+[![OpenCollective](https://opencollective.com/readline/badge/sponsors.svg)](#sponsors)
 
 Readline is A Pure Go Implementation of a libreadline-style Library.  
 The goal is to be a powerful alternater for GNU-Readline.
@@ -11,6 +13,8 @@ The goal is to be a powerful alternater for GNU-Readline.
 
 **WHY:**
 Readline will support most of features which GNU Readline is supported, and provide a pure go environment and a MIT license.
+
+It can also provides shell-like interactives by using [flagly](https://github.com/chzyer/flagly) (demo: [flagly-shell](https://github.com/chzyer/flagly/blob/master/demo/flagly-shell/flagly-shell.go))
 
 # Demo
 
@@ -21,7 +25,13 @@ Also works fine in windows
 ![demo windows](https://raw.githubusercontent.com/chzyer/readline/assets/windows.gif)
 
 
-You can read the source code in [example/main.go](https://github.com/chzyer/readline/blob/master/example/main.go).
+* [example/readline-demo](https://github.com/chzyer/readline/blob/master/example/readline-demo/readline-demo.go) The source code about the demo above
+
+* [example/readline-im](https://github.com/chzyer/readline/blob/master/example/readline-im/readline-im.go) Example for how to write a IM program.
+
+* [example/readline-multiline](https://github.com/chzyer/readline/blob/master/example/readline-multiline/readline-multiline.go) Example for how to parse command which can submit by multiple time.
+
+* [example/readline-pass-strength](https://github.com/chzyer/readline/blob/master/example/readline-pass-strength/readline-pass-strength.go) A example about checking password strength, written by [@sahib](https://github.com/sahib)
 
 # Todo
 * Vi Mode is not completely finish
@@ -62,7 +72,7 @@ defer rl.Close()
 
 for {
 	line, err := rl.Readline()
-	if err != nil { // io.EOF
+	if err != nil { // io.EOF, readline.ErrInterrupt
 		break
 	}
 	println(line)
@@ -83,37 +93,7 @@ defer rl.Close()
 
 for {
 	line, err := rl.Readline()
-	if err != nil { // io.EOF
-		break
-	}
-	println(line)
-}
-```
-
-* Example with auto refresh
-
-```go
-import (
-	"log"
-	"gopkg.in/readline.v1"
-)
-
-rl, err := readline.New("> ")
-if err != nil {
-	panic(err)
-}
-defer rl.Close()
-log.SetOutput(l.Stderr()) // let "log" write to l.Stderr instead of os.Stderr
-
-go func() {
-	for _ = range time.Tick(time.Second) {
-		log.Println("hello")
-	}
-}()
-
-for {
-	line, err := rl.Readline()
-	if err != nil { // io.EOF
+	if err != nil { // io.EOF, readline.ErrInterrupt
 		break
 	}
 	println(line)
@@ -146,7 +126,7 @@ defer rl.Close()
 
 for {
 	line, err := rl.Readline()
-	if err != nil { // io.EOF
+	if err != nil { // io.EOF, readline.ErrInterrupt
 		break
 	}
 	println(line)
@@ -178,7 +158,7 @@ Notice: `Meta`+`B` is equals with `Alt`+`B` in windows.
 | `Ctrl`+`I` / `Tab` | Command line completion                  |
 | `Ctrl`+`J`         | Line feed                                |
 | `Ctrl`+`K`         | Cut text to the end of line              |
-| `Ctrl`+`L`         | Clean screen (TODO)                      |
+| `Ctrl`+`L`         | Clear screen                             |
 | `Ctrl`+`M`         | Same as Enter key                        |
 | `Ctrl`+`N` / `↓`   | Next line (in history)                   |
 | `Ctrl`+`P` / `↑`   | Prev line (in history)                   |
@@ -234,9 +214,93 @@ Notice: `Meta`+`B` is equals with `Alt`+`B` in windows.
 
 If you test it otherwhere, whether it works fine or not, please let me know!
 
+## Who is using Readline
+
+* [cockroachdb/cockroach](https://github.com/cockroachdb/cockroach)
+* [youtube/doorman](https://github.com/youtube/doorman)
+* [bom-d-van/harp](https://github.com/bom-d-van/harp)
+* [abiosoft/ishell](https://github.com/abiosoft/ishell)
+* [robertkrimen/otto](https://github.com/robertkrimen/otto)
+* [Netflix/hal-9001](https://github.com/Netflix/hal-9001)
+* [docker/go-p9p](https://github.com/docker/go-p9p)
+
 # Feedback
 
 If you have any questions, please submit a github issue and any pull requests is welcomed :)
 
 * [https://twitter.com/chzyer](https://twitter.com/chzyer)  
 * [http://weibo.com/2145262190](http://weibo.com/2145262190)  
+
+
+# Backers
+
+Love Readline? Help me keep it alive by donating funds to cover project expenses!<br />
+[[Become a backer](https://opencollective.com/readline#backer)]
+
+<a href="https://opencollective.com/readline/backer/0/website" target="_blank"><img src="https://opencollective.com/readline/backer/0/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/1/website" target="_blank"><img src="https://opencollective.com/readline/backer/1/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/2/website" target="_blank"><img src="https://opencollective.com/readline/backer/2/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/3/website" target="_blank"><img src="https://opencollective.com/readline/backer/3/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/4/website" target="_blank"><img src="https://opencollective.com/readline/backer/4/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/5/website" target="_blank"><img src="https://opencollective.com/readline/backer/5/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/6/website" target="_blank"><img src="https://opencollective.com/readline/backer/6/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/7/website" target="_blank"><img src="https://opencollective.com/readline/backer/7/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/8/website" target="_blank"><img src="https://opencollective.com/readline/backer/8/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/9/website" target="_blank"><img src="https://opencollective.com/readline/backer/9/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/10/website" target="_blank"><img src="https://opencollective.com/readline/backer/10/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/11/website" target="_blank"><img src="https://opencollective.com/readline/backer/11/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/12/website" target="_blank"><img src="https://opencollective.com/readline/backer/12/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/13/website" target="_blank"><img src="https://opencollective.com/readline/backer/13/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/14/website" target="_blank"><img src="https://opencollective.com/readline/backer/14/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/15/website" target="_blank"><img src="https://opencollective.com/readline/backer/15/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/16/website" target="_blank"><img src="https://opencollective.com/readline/backer/16/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/17/website" target="_blank"><img src="https://opencollective.com/readline/backer/17/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/18/website" target="_blank"><img src="https://opencollective.com/readline/backer/18/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/19/website" target="_blank"><img src="https://opencollective.com/readline/backer/19/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/20/website" target="_blank"><img src="https://opencollective.com/readline/backer/20/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/21/website" target="_blank"><img src="https://opencollective.com/readline/backer/21/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/22/website" target="_blank"><img src="https://opencollective.com/readline/backer/22/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/23/website" target="_blank"><img src="https://opencollective.com/readline/backer/23/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/24/website" target="_blank"><img src="https://opencollective.com/readline/backer/24/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/25/website" target="_blank"><img src="https://opencollective.com/readline/backer/25/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/26/website" target="_blank"><img src="https://opencollective.com/readline/backer/26/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/27/website" target="_blank"><img src="https://opencollective.com/readline/backer/27/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/28/website" target="_blank"><img src="https://opencollective.com/readline/backer/28/avatar.svg"></a>
+<a href="https://opencollective.com/readline/backer/29/website" target="_blank"><img src="https://opencollective.com/readline/backer/29/avatar.svg"></a>
+
+
+# Sponsors
+
+Become a sponsor and get your logo here on our Github page. [[Become a sponsor](https://opencollective.com/readline#sponsor)]
+
+<a href="https://opencollective.com/readline/sponsor/0/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/0/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/1/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/1/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/2/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/2/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/3/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/3/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/4/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/4/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/5/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/5/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/6/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/6/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/7/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/7/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/8/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/8/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/9/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/9/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/10/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/10/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/11/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/11/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/12/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/12/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/13/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/13/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/14/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/14/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/15/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/15/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/16/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/16/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/17/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/17/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/18/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/18/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/19/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/19/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/20/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/20/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/21/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/21/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/22/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/22/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/23/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/23/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/24/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/24/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/25/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/25/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/26/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/26/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/27/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/27/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/28/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/28/avatar.svg"></a>
+<a href="https://opencollective.com/readline/sponsor/29/website" target="_blank"><img src="https://opencollective.com/readline/sponsor/29/avatar.svg"></a>
+
