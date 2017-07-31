@@ -453,8 +453,6 @@ func exists(f string) bool {
 }
 func main() {
 
-	var err error
-
 	if len(os.Args) != 2 {
 		usage()
 		return
@@ -495,8 +493,4 @@ func main() {
 
 	repl()
 
-	err = database.Save()
-	if err != nil {
-		fmt.Printf("Error while saving %s \n", err)
-	}
 }
