@@ -457,12 +457,12 @@ func exists(f string) bool {
 }
 func main() {
 
-	if len(os.Args) != 2 {
-		usage()
-		return
+	dirname, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
 	}
 
-	dbFileName := os.Args[1]
+	dbFileName := dirname + "/.npass.db"
 	dbPassword := ""
 
 	if !exists(dbFileName) {
