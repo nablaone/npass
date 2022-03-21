@@ -22,6 +22,13 @@ type Password struct {
 	Description string
 }
 
+func (p *Password) Print() {
+	fmt.Printf("Key:         %s\n", p.Key)
+	fmt.Printf("Login:       %s\n", p.Login)
+	fmt.Printf("Password:    %s\n", p.Password)
+	fmt.Printf("Description: %s\n", p.Description)
+}
+
 //
 // Database holds entries and metainfo
 //

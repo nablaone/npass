@@ -297,10 +297,8 @@ func printCmd(params []string) cmdResult {
 		return nothingToShow
 	}
 
-	fmt.Printf("Key:         %s\n", p.Key)
-	fmt.Printf("Login:       %s\n", p.Login)
-	fmt.Printf("Password:    %s\n", p.Password)
-	fmt.Printf("Description: %s\n", p.Description)
+	p.Print()
+
 	return ok
 }
 
@@ -374,6 +372,12 @@ func generateCmd(params []string) cmdResult {
 }
 
 func call(cmd string, params []string) cmdResult {
+
+	p := findEntry([]string{cmd})
+	if p != nil {
+		p.Print()
+		return ok
+	}
 
 	fn := commands[cmd]
 	if fn == nil {
