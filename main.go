@@ -468,12 +468,24 @@ func main() {
 	if !exists(dbFileName) {
 		fmt.Printf("File '%s' doesn't not exists. Creating new database. Press control-c to abort.\n", dbFileName)
 		p1 := readPassword("Password: ")
+
+		if p1 == nil || *p1 == "" {
+			fmt.Println("Aborted.")
+			return
+		}
+
 		p2 := readPassword("Confirm password: ")
+
+		if p2 == nil {
+			fmt.Println("Aborted.")
+			return
+		}
 
 		if *p1 != *p2 {
 			fmt.Println("Passwords don't match. Abort.")
 			return
 		}
+
 		dbPassword = *p1
 
 		database = New(dbFileName, dbPassword)
@@ -486,6 +498,10 @@ func main() {
 
 		fmt.Println("Please enter a password")
 		p := readPassword("Password: ")
+		if p == nil {
+			fmt.Println("Aborted.")
+			return
+		}
 		dbPassword = *p
 		database = New(dbFileName, dbPassword)
 		err := database.Load()
