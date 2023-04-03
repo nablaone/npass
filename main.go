@@ -53,6 +53,7 @@ func init() {
 	commands["copy"] = copyCmd
 	commands["generate"] = generateCmd
 	commands["gen"] = generateCmd
+	commands["csv"] = csvCmd
 
 	bio = bufio.NewReader(os.Stdin)
 	recentSearchResults = make([]Password, 0)
@@ -315,6 +316,13 @@ func copyCmd(params []string) cmdResult {
 		return otherError
 	}
 	fmt.Printf("Copied to clipboard.\n")
+
+	return ok
+}
+
+func csvCmd(params []string) cmdResult {
+
+	fmt.Println(database.CSV())
 
 	return ok
 }

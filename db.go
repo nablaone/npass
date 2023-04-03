@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,10 +12,8 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-//
 // Password keeps login, password and other
 // this should be called Entry.
-//
 type Password struct {
 	Key         string
 	Login       string
@@ -29,18 +28,14 @@ func (p *Password) Print() {
 	fmt.Printf("Description: %s\n", p.Description)
 }
 
-//
 // Database holds entries and metainfo
-//
 type Database struct {
 	FileName string
 	Password string
 	Entries  map[string]Password
 }
 
-//
 // New crates a database instance. It doesn't open/create a file.
-//
 func New(fileName, password string) *Database {
 	database = &Database{
 		FileName: fileName,
@@ -50,9 +45,7 @@ func New(fileName, password string) *Database {
 	return database
 }
 
-//
 // Load reads a file.
-//
 func (d *Database) Load() (err error) {
 
 	f, err := os.Open(d.FileName)
@@ -100,9 +93,7 @@ func (d *Database) Load() (err error) {
 	return nil
 }
 
-//
 // Save stores database into a file.
-//
 func (d *Database) Save() error {
 
 	blob, err := json.MarshalIndent(&d.Entries, "", "    ")
@@ -135,9 +126,7 @@ func (d *Database) Save() error {
 	return nil
 }
 
-//
 // Add add entry to a database.
-//
 func (d *Database) Add(key, login, pass, description string) {
 
 	var p Password
@@ -149,16 +138,12 @@ func (d *Database) Add(key, login, pass, description string) {
 	d.Entries[key] = p
 }
 
-//
 // Delete deletes entry.
-//
 func (d *Database) Delete(key string) {
 	delete(d.Entries, key)
 }
 
-//
 // Get retrieves entry if any otherwise returns nil.
-//
 func (d *Database) Get(key string) *Password {
 	p, exists := d.Entries[key]
 	if exists {
@@ -183,9 +168,7 @@ func (s byName) Len() int           { return len(s) }
 func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s byName) Less(i, j int) bool { return s[i].Key < s[j].Key }
 
-//
 // Search returns entries matching query.
-//
 func (d *Database) Search(q string) []Password {
 	var res = []Password{}
 
@@ -197,4 +180,20 @@ func (d *Database) Search(q string) []Password {
 
 	sort.Sort(byName(res))
 	return res
+}
+
+func (d *Database) CSV() string {
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "name;login;password;notes\n")
+
+	for _, entry := range d.Entries {
+		fmt.Fprintf(&buf, "%s;%s;%s;%s\n",
+			entry.Key,
+			entry.Login,
+			entry.Password,
+			entry.Description)
+	}
+
+	return buf.String()
 }
