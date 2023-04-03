@@ -1,6 +1,6 @@
 module github.com/nablaone/npass
 
-go 1.15
+go 1.20
 
 require (
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c
