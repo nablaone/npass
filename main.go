@@ -51,6 +51,7 @@ func init() {
 	commands["cat"] = printCmd
 	commands["quit"] = quitCmd
 	commands["copy"] = copyCmd
+	commands["c"] = copyCmd
 	commands["generate"] = generateCmd
 	commands["gen"] = generateCmd
 	commands["csv"] = csvCmd
