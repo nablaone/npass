@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fatih/color"
 	"golang.org/x/crypto/openpgp"
 )
 
@@ -24,7 +25,10 @@ type Password struct {
 func (p *Password) Print() {
 	fmt.Printf("Key:         %s\n", p.Key)
 	fmt.Printf("Login:       %s\n", p.Login)
-	fmt.Printf("Password:    %s\n", p.Password)
+	fmt.Printf("Password:    ")
+	c := color.New(color.FgWhite).Add(color.BgWhite)
+	c.Print(p.Password)
+	fmt.Println()
 	fmt.Printf("Description: %s\n", p.Description)
 }
 
