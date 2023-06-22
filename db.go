@@ -158,7 +158,7 @@ func searchMatch(pass Password, q string) bool {
 		return true
 	}
 
-	return strings.Contains(pass.Login, q) ||
+	return strings.Contains(pass.Key, q) || strings.Contains(pass.Login, q) ||
 		strings.Contains(pass.Description, q)
 }
 

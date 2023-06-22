@@ -47,6 +47,7 @@ func init() {
 	commands["rename"] = renameCmd
 	commands["list"] = searchCmd
 	commands["ls"] = searchCmd
+	commands["l"] = searchCmd
 	commands["show"] = printCmd
 	commands["cat"] = printCmd
 	commands["quit"] = quitCmd
@@ -381,12 +382,6 @@ func generateCmd(params []string) cmdResult {
 }
 
 func call(cmd string, params []string) cmdResult {
-
-	p := findEntry([]string{cmd})
-	if p != nil {
-		p.Print()
-		return ok
-	}
 
 	fn := commands[cmd]
 	if fn == nil {
